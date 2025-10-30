@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEXTECH</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        .nav-link.active { color: #2563EB; border-bottom: 2px solid #2563EB; font-weight: 600; }
+        .nav-link { transition: all 0.2s ease-in-out; border-bottom: 2px solid transparent; padding-bottom: 4px; }
+        .nav-link:hover { color: #3B82F6; }
+        .content-page, .admin-subpage { display: none; }
+        .content-page.active, .admin-subpage.active { display: block; }
+        #chat-history::-webkit-scrollbar { width: 6px; }
+        #chat-history::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        #chat-history::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .modal { transition: opacity 0.25s ease; }
+        .modal-content { transition: transform 0.25s ease; }
+        #search-suggestions {
+            max-height: 160px; overflow-y: auto; border-top: 1px solid #e5e7eb; position: absolute; bottom: 100%;
+            left: 0; right: 0; background-color: white; z-index: 10;
+            box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.1), 0 -2px 4px -2px rgb(0 0 0 / 0.1);
+            border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem;
+        }
+        .admin-nav-link.active { background-color: #2563EB; color: white; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+    <div id="content-modal" class="modal fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 transform scale-95">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h2 id="modal-title" class="text-2xl font-bold text-gray-800"></h2>
+                <button id="modal-close-btn" class="text-gray-500 hover:text-gray-800"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div id="modal-body" class="text-gray-700 leading-relaxed max-h-[70vh] overflow-y-auto prose"></div>
+        </div>
+    </div>
+
+    <header class="bg-white shadow-md sticky top-0 z-40">
+        <nav class="container mx-auto px-4 md:px-6 py-4 flex justify-between items-center">
+            <a href="#" class="text-2xl font-bold text-blue-600" data-page="chatbot"><i data-lucide="scale" class="inline-block w-6 h-6 -mt-1"></i> LEXTECH</a>
+            <div class="hidden md:flex items-center space-x-5 text-sm font-medium text-gray-600">
+                <a href="#" class="nav-link active" data-page="chatbot">Chatbot</a>
+                <a href="#" class="nav-link" data-page="documents">Tài liệu</a>
+                <a href="#" class="nav-link" data-page="news">Tin tức</a>
+            </div>
+            <div id="auth-buttons" class="hidden md:flex items-center space-x-3">
+                 <a href="#" data-page="login" class="nav-link text-sm font-medium text-gray-600 hover:text-blue-600"><i data-lucide="user" class="inline-block w-4 h-4 mr-1"></i> ADMIN </a>
+                <a href="#" data-page="admin" class="flex items-center bg-gray-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-700 hidden"><i data-lucide="settings" class="inline-block w-4 h-4 mr-1.5"></i> Quản trị</a>
+            </div>
+            <button id="mobile-menu-button" class="md:hidden text-gray-700 p-2 rounded-lg hover:bg-gray-100"><i data-lucide="menu" class="w-6 h-6"></i></button>
+        </nav>
+        <div id="mobile-menu" class="hidden md:hidden bg-white px-4 pt-2 pb-4 space-y-2 border-t">
+            <a href="#" class="block nav-link active" data-page="chatbot">Chatbot</a>
+            <a href="#" class="block nav-link" data-page="documents">Tài liệu</a>
+            <a href="#" class="block nav-link" data-page="news">Tin tức</a>
+            <hr class="my-2">
+            <div id="mobile-auth-buttons">
+                <a href="#" class="block nav-link" data-page="login">Đăng nhập</a>
+                <a href="#" class="block nav-link hidden" data-page="admin">Quản trị</a>
+            </div>
+        </div>
+    </header>
+
+    <main id="content-container" class="container mx-auto p-4 md:p-8 min-h-[calc(100vh-200px)]">
+        
+        <div id="chatbot-page" class="content-page active">
+            <h1 class="text-3xl font-bold mb-6 text-center">Chatbot Tư Vấn Pháp Luật</h1>
+            <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="flex flex-col h-[70vh]">
+                    <div id="chat-history" class="flex-1 p-6 space-y-4 overflow-y-auto bg-gray-50">
+                        <div class="flex items-start gap-3">
+                            <div class="bg-blue-600 text-white p-2.5 rounded-full w-10 h-10 flex-shrink-0 flex items-center justify-center"><i data-lucide="bot" class="w-6 h-6"></i></div>
+                            <div class="bg-white p-4 rounded-lg shadow-sm" style="max-width: 70%;"><p class="font-semibold text-blue-700">Bot Tư Vấn</p><p class="text-gray-800">Xin chào! Tôi có thể giúp gì cho bạn về pháp luật?</p></div>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div id="search-suggestions" class="hidden"></div>
+                        <div class="p-4 bg-gray-50 border-t flex items-center gap-3">
+                            <input type="text" id="chat-input" placeholder="Nhập câu hỏi của bạn..." class="flex-1 w-full px-4 py-3 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button id="send-chat-btn" class="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 flex-shrink-0"><i data-lucide="send" class="w-6 h-6"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-center text-sm text-gray-600 mt-4 max-w-2xl mx-auto"><i data-lucide="alert-triangle" class="w-4 h-4 inline-block mr-1 text-yellow-500"></i> Lưu ý: Thông tin từ chatbot chỉ mang tính tham khảo.</p>
+        </div>
+
+        <div id="documents-page" class="content-page space-y-6">
+            <h1 class="text-3xl font-bold mb-6">Tra Cứu Tài Liệu Pháp Luật</h1>
+            <div class="bg-white p-4 rounded-lg shadow-sm"><input type="search" id="doc-search-input" placeholder="Tìm theo tên văn bản..." class="flex-1 w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="document-list"></div>
+        </div>
+
+        <div id="news-page" class="content-page space-y-6">
+            <h1 class="text-3xl font-bold mb-6">Tin Tức Pháp Luật</h1>
+            <div id="news-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </div>
+
+        <div id="admin-page" class="content-page">
+            <div class="flex h-full min-h-screen bg-gray-100 text-gray-800">
+                <aside class="w-64 flex-shrink-0 bg-gray-800 text-gray-300 p-4 flex flex-col">
+                    <div class="text-white text-xl font-semibold flex items-center mb-6"><i data-lucide="shield-check" class="w-8 h-8 mr-2 text-blue-400"></i><span>Admin Panel</span></div>
+                    <nav id="admin-nav" class="flex-grow space-y-2">
+                        <a href="#" class="admin-nav-link flex items-center px-3 py-2.5 rounded-lg active" data-subpage="dashboard"><i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i><span>Bảng điều khiển</span></a>
+                        <a href="#" class="admin-nav-link flex items-center px-3 py-2.5 rounded-lg hover:bg-gray-700" data-subpage="doc-manager"><i data-lucide="book-copy" class="w-5 h-5 mr-3"></i><span>Quản lý Tài liệu</span></a>
+                        <a href="#" class="admin-nav-link flex items-center px-3 py-2.5 rounded-lg hover:bg-gray-700" data-subpage="news-manager"><i data-lucide="newspaper" class="w-5 h-5 mr-3"></i><span>Quản lý Tin tức</span></a>
+                        <a href="#" class="admin-nav-link flex items-center px-3 py-2.5 rounded-lg hover:bg-gray-700" data-subpage="chatbot-manager"><i data-lucide="bot" class="w-5 h-5 mr-3"></i><span>Quản lý Chatbot</span></a>
+                    </nav>
+                    <div class="mt-auto"><button id="logout-btn" class="w-full flex items-center px-3 py-2.5 rounded-lg mt-2 text-red-400 hover:bg-red-500 hover:text-white"><i data-lucide="log-out" class="w-5 h-5 mr-3"></i><span>Đăng xuất</span></button></div>
+                </aside>
+                <div class="flex-1 flex flex-col">
+                    <header class="bg-white shadow-md p-4 flex justify-between items-center">
+                        <h1 class="text-xl font-semibold">Chào mừng Quản trị viên!</h1>
+                        <div class="flex items-center"><img src="https://placehold.co/40x40/E2E8F0/334155?text=A" alt="Admin Avatar" class="w-10 h-10 rounded-full mr-3"><div><div id="admin-email-display" class="font-semibold"></div><div class="text-sm text-gray-500">Quản trị viên</div></div></div>
+                    </header>
+                    <main class="flex-1 p-6 space-y-6 overflow-y-auto">
+                        <div id="dashboard-subpage" class="admin-subpage active">
+                            <h1 class="text-3xl font-bold">Thống kê Truy cập (Mô phỏng)</h1>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                                <div class="bg-white p-5 rounded-lg shadow flex justify-between items-center"><div><div class="text-sm text-gray-500">Lượt dùng Chatbot</div><div id="stats-chatbot-usage" class="text-2xl font-bold">0</div></div><div class="bg-blue-100 text-blue-600 p-3 rounded-full"><i data-lucide="bot" class="w-6 h-6"></i></div></div>
+                                <div class="bg-white p-5 rounded-lg shadow flex justify-between items-center"><div><div class="text-sm text-gray-500">Lượt xem Tài liệu</div><div id="stats-document-views" class="text-2xl font-bold">0</div></div><div class="bg-green-100 text-green-600 p-3 rounded-full"><i data-lucide="book-copy" class="w-6 h-6"></i></div></div>
+                            </div>
+                            <div class="bg-white p-6 rounded-lg shadow mt-6">
+                                <h2 class="text-xl font-semibold">Hộp thư: Câu hỏi Chatbot không trả lời được</h2>
+                                <div id="admin-inbox-container" class="mt-4 space-y-3"></div>
+                            </div>
+                        </div>
+                        <div id="doc-manager-subpage" class="admin-subpage">
+                            <div class="flex justify-between items-center"><h1 class="text-3xl font-bold">Quản lý Nội dung Tài liệu</h1><button id="add-doc-btn" class="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700"><i data-lucide="plus" class="w-5 h-5 mr-2"></i>Thêm tài liệu mới</button></div>
+                            <div id="admin-doc-list" class="mt-6 bg-white p-4 rounded-lg shadow"></div>
+                        </div>
+                        <div id="news-manager-subpage" class="admin-subpage">
+                            <div class="flex justify-between items-center"><h1 class="text-3xl font-bold">Quản lý Nội dung Tin tức</h1><button id="add-news-btn" class="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700"><i data-lucide="plus" class="w-5 h-5 mr-2"></i>Thêm tin tức mới</button></div>
+                            <div id="admin-news-list" class="mt-6 bg-white p-4 rounded-lg shadow"></div>
+                        </div>
+                        <div id="chatbot-manager-subpage" class="admin-subpage">
+                            <h1 class="text-3xl font-bold">Quản lý Chatbot</h1>
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                                <div class="bg-white p-6 rounded-lg shadow">
+                                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-semibold">Quản lý Câu trả lời</h2><button id="add-answer-btn" class="text-sm bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600">Thêm mới</button></div>
+                                    <div id="admin-chatbot-data-list" class="space-y-2 max-h-96 overflow-y-auto"></div>
+                                </div>
+                                <div class="bg-white p-6 rounded-lg shadow">
+                                    <h2 class="text-xl font-semibold mb-4">Quản lý Gợi ý tìm kiếm</h2>
+                                    <div class="flex gap-2 mb-4"><input id="new-suggestion-input" placeholder="Thêm gợi ý mới..." class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"><button id="add-suggestion-btn" class="bg-green-500 text-white px-4 rounded hover:bg-green-600">Thêm</button></div>
+                                    <div id="admin-suggestions-list" class="space-y-2 max-h-96 overflow-y-auto"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            </div>
+        </div>
+        <div id="login-page" class="content-page">
+            <div class="max-w-md mx-auto mt-10">
+                <div class="bg-white p-8 rounded-lg shadow-lg">
+                    <h1 class="text-3xl font-bold mb-4 text-center">Đăng Nhập Quản Trị</h1>
+                    <div id="login-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">Email không hợp lệ.</div>
+                    <div class="space-y-4">
+                        <div><label for="login-email" class="block text-sm font-medium text-gray-700">Email Quản trị</label><input type="email" id="login-email" placeholder="abc123@gmail.com" class="mt-1 w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                        <button id="login-btn" class="w-full bg-blue-600 text-white font-medium py-3 rounded-lg hover:bg-blue-700">Đăng nhập </button>
+                    </div>
+                     <p class="text-center text-xs text-gray-500 mt-6"><b>Lưu ý:</b> Cần có Backend để đăng nhập Google thật.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 text-gray-300 mt-12">
+        <div class="container mx-auto px-6 py-10"><div class="border-t border-gray-700 pt-6 text-center text-sm"><p>&copy; 2025 LEXTECH. Mọi quyền được bảo lưu.</p></div></div>
+    </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    
+    lucide.createIcons();
+    const adminEmails = ['nguyentuanhuy0905@gmail.com', 'tuanhuy956@gmail.com'];
+    const allNavLinks = document.querySelectorAll('.nav-link');
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    const normalizeText = (text) => text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+
+    const simulation = {
+        stats: {
+            get: (key) => parseInt(localStorage.getItem(key) || '0'),
+            increment: (key) => localStorage.setItem(key, simulation.stats.get(key) + 1),
+            updateAdminView: () => {
+                document.getElementById('stats-chatbot-usage').textContent = simulation.stats.get('chatbotUsage');
+                document.getElementById('stats-document-views').textContent = simulation.stats.get('documentViews');
+            }
+        },
+        inbox: {
+            add: (question) => { let q = JSON.parse(localStorage.getItem('unansweredQuestions')||'[]'); if (!q.includes(question)) q.unshift(question); localStorage.setItem('unansweredQuestions', JSON.stringify(q.slice(0,10))); },
+            render: () => {
+                const c = document.getElementById('admin-inbox-container'), q = JSON.parse(localStorage.getItem('unansweredQuestions')||'[]');
+                if (!c) return;
+                if (q.length === 0) { c.innerHTML = `<p class="text-gray-500">Chưa có câu hỏi nào.</p>`; return; }
+                c.innerHTML = q.map(i => `<div class="flex flex-col sm:flex-row justify-between sm:items-center p-3 bg-gray-50 rounded-lg gap-3"><p class="text-gray-700 italic">"${i}"</p><a href="https://www.facebook.com/tuan.huy.401271" target="_blank" class="flex-shrink-0 flex items-center justify-center bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-600"><i data-lucide="message-square" class="w-4 h-4 mr-1.5"></i> Phản hồi</a></div>`).join('');
+                lucide.createIcons();
+            }
+        }
+    };
+
+    const changePage = (pageId) => {
+        if (pageId === 'admin' && !auth.isAdmin()) { changePage('login'); return; }
+        if (pageId === 'documents') simulation.stats.increment('documentViews');
+        if (pageId === 'admin') { simulation.stats.updateAdminView(); simulation.inbox.render(); }
+
+        const mainHeader = document.querySelector('body > header'), mainFooter = document.querySelector('footer');
+        if (pageId === 'admin') { if(mainHeader) mainHeader.style.display = 'none'; if(mainFooter) mainFooter.style.display = 'none'; } 
+        else { if(mainHeader) mainHeader.style.display = 'block'; if(mainFooter) mainFooter.style.display = 'block'; }
+
+        document.querySelectorAll('.content-page').forEach(p => p.classList.remove('active'));
+        document.getElementById(`${pageId}-page`).classList.add('active');
+        allNavLinks.forEach(l => l.classList.remove('active'));
+        document.querySelectorAll(`.nav-link[data-page="${pageId}"]`).forEach(l => l.classList.add('active'));
+        mobileMenu.classList.add('hidden');
+    };
+
+    allNavLinks.forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); changePage(e.currentTarget.dataset.page); }); });
+    mobileMenuButton.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+
+    const auth = {
+        login: (email) => { if (adminEmails.includes(email.toLowerCase())) { localStorage.setItem('authStatus', JSON.stringify({ loggedIn: true, email: email, role: 'admin' })); return true; } return false; },
+        logout: () => localStorage.removeItem('authStatus'),
+        getAuthStatus: () => JSON.parse(localStorage.getItem('authStatus')) || { loggedIn: false },
+        isAdmin: () => auth.getAuthStatus().role === 'admin'
+    };
+    
+    const updateUIAfterAuth = () => {
+        const status = auth.getAuthStatus();
+        document.querySelectorAll('[data-page="login"]').forEach(l => l.classList.toggle('hidden', status.loggedIn));
+        document.querySelectorAll('[data-page="admin"]').forEach(l => l.classList.toggle('hidden', !status.loggedIn || !status.isAdmin));
+        if (status.loggedIn && status.isAdmin) { document.getElementById('admin-email-display').textContent = status.email; }
+    };
+    
+    document.getElementById('login-btn').addEventListener('click', () => {
+        const emailInput = document.getElementById('login-email');
+        if (auth.login(emailInput.value)) { updateUIAfterAuth(); changePage('admin'); } 
+        else { document.getElementById('login-error').classList.remove('hidden'); }
+    });
+    document.getElementById('logout-btn').addEventListener('click', () => { auth.logout(); updateUIAfterAuth(); changePage('login'); });
+
+    let documents = [], news = [], chatbotData = {}, suggestedKeywords = [];
+    const contentModal = document.getElementById('content-modal');
+    
+    const setupInitialData = () => {
+        documents = JSON.parse(localStorage.getItem('documents')) || (() => {
+            const defaultDocs = [{ id: 1, icon: 'scale', title: 'Luật Đất đai 2024', summary: 'Quy định về...', content: 'Nội dung chi tiết...' }];
+            for (let i = 2; i <= 20; i++) defaultDocs.push({ id: i, icon: 'file-text', title: `Văn bản pháp luật số ${i}`, summary: `Tóm tắt cho văn bản ${i}.`, content: `Nội dung của văn bản ${i}.` });
+            localStorage.setItem('documents', JSON.stringify(defaultDocs)); return defaultDocs;
+        })();
+        
+        news = JSON.parse(localStorage.getItem('news')) || (() => {
+            const defaultNews = [
+                { id: 1, image: 'https://placehold.co/400x250/EBF8FF/3B82F6?text=Ch%C3%ADnh+s%C3%A1ch', date: '30/10/2025', title: 'Quy định mới về BHYT', summary: 'Nhiều thay đổi...', content: 'Nội dung chi tiết...'},
+                { id: 2, image: 'https://placehold.co/400x250/FFF7ED/F97316?text=T%C3%ACnh+hu%E1%BB%91ng', date: '29/10/2025', title: 'Xử lý khi hàng xóm lấn đất?', summary: 'Phân tích tình huống...', content: 'Các bước xử lý...'},
+                { id: 3, image: 'https://placehold.co/400x250/FEF2F2/EF4444?text=C%E1%BA%A3nh+b%C3%A1o', date: '28/10/2025', title: 'Rủi ro khi lập vi bằng', summary: 'Vi bằng không thay thế công chứng...', content: 'Vi bằng và Hợp đồng công chứng...'}
+            ];
+            localStorage.setItem('news', JSON.stringify(defaultNews)); return defaultNews;
+        })();
+        
+        chatbotData = JSON.parse(localStorage.getItem('chatbotData')) || (() => {
+            const defaultData = { "ly hon": "...", "dat dai": "...", "so do": "...", "lao dong": "...", "thanh lap cong ty": "...", "di chuc": "...", "quyen nuoi con": "...", "hop dong dat coc": "..." };
+            localStorage.setItem('chatbotData', JSON.stringify(defaultData)); return defaultData;
+        })();
+
+        suggestedKeywords = JSON.parse(localStorage.getItem('suggestedKeywords')) || (() => {
+            const defaultKeywords = ['Thủ tục ly hôn', 'Luật đất đai 2024', 'Làm sổ đỏ', 'Hợp đồng lao động', 'Thành lập công ty', 'Tranh chấp đất đai', 'Thừa kế không di chúc', 'Quyền nuôi con', 'Phân chia tài sản', 'Nghĩa vụ cấp dưỡng', 'Đăng ký kết hôn', 'Vi phạm hợp đồng', 'Bảo hiểm xã hội', 'Thời gian thử việc', 'Sa thải trái luật', 'Luật doanh nghiệp', 'Các loại thuế', 'Sở hữu trí tuệ', 'Đăng ký bản quyền', 'Giấy phép kinh doanh', 'Thủ tục phá sản', 'Mua bán nhà đất', 'Hợp đồng đặt cọc', 'Vi bằng là gì?', 'Công chứng hợp đồng', 'Luật giao thông đường bộ', 'Mức phạt nồng độ cồn', 'Vượt đèn đỏ', 'Lỗi không gương', 'Gây tai nạn giao thông', 'Luật hình sự', 'Tội trộm cắp tài sản', 'Cố ý gây thương tích', 'Tội lừa đảo', 'Thời hiệu truy cứu', 'Luật dân sự', 'Hợp đồng vay tiền', 'Tuổi chịu trách nhiệm hình sự', 'Quyền nhân thân', 'Bồi thường thiệt hại', 'Luật thừa kế', 'Di chúc hợp pháp', 'Hàng thừa kế thứ nhất', 'Từ chối nhận di sản', 'Người làm chứng di chúc', 'Nghĩa vụ quân sự', 'Tạm hoãn nghĩa vụ', 'Độ tuổi nhập ngũ', 'Trốn nghĩa vụ quân sự', 'Khám sức khỏe NVQS'];
+            localStorage.setItem('suggestedKeywords', JSON.stringify(defaultKeywords)); return defaultKeywords;
+        })();
+    };
+    
+    const openContentModal = (id, type) => {
+        const dataSource = type === 'document' ? documents : news;
+        const item = dataSource.find(d => d.id == id);
+        if(item) {
+            document.getElementById('modal-title').textContent = item.title;
+            document.getElementById('modal-body').innerHTML = item.content;
+            contentModal.classList.remove('hidden', 'opacity-0'); contentModal.querySelector('.modal-content').classList.remove('scale-95');
+        }
+    };
+    const closeModal = () => { contentModal.classList.add('opacity-0'); contentModal.querySelector('.modal-content').classList.add('scale-95'); setTimeout(() => contentModal.classList.add('hidden'), 250); };
+    document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+    contentModal.addEventListener('click', (e) => { if (e.target === contentModal) closeModal(); });
+
+    const renderDocuments = (docs) => {
+        const container = document.getElementById('document-list'); container.innerHTML = '';
+        docs.forEach(doc => {
+            const el = document.createElement('div'); el.className = 'bg-white p-5 rounded-lg shadow-md flex flex-col group hover:shadow-xl hover:-translate-y-1 transition-all';
+            el.innerHTML = `<div class="flex justify-between items-start"><div class="bg-blue-100 text-blue-600 p-3 rounded-lg"><i data-lucide="${doc.icon || 'file-text'}" class="w-7 h-7"></i></div><button class="favorite-btn text-gray-400 hover:text-red-500"><i data-lucide="heart" class="w-6 h-6"></i></button></div><div class="mt-4 flex-grow"><h3 class="text-lg font-semibold group-hover:text-blue-600">${doc.title}</h3><p class="text-sm text-gray-600 mt-1">${doc.summary}</p></div><div class="mt-4 pt-4 border-t"><button class="view-content-btn text-sm font-medium text-blue-600 hover:underline" data-id="${doc.id}" data-type="document">Xem chi tiết <i data-lucide="arrow-right" class="inline-block w-4 h-4"></i></button></div>`;
+            container.appendChild(el);
+        });
+        lucide.createIcons(); addContentEventListeners();
+    };
+    document.getElementById('doc-search-input').addEventListener('keyup', (e) => renderDocuments(documents.filter(doc => normalizeText(doc.title).includes(normalizeText(e.target.value)))));
+    
+    const renderNews = () => {
+        const container = document.getElementById('news-container');
+        container.innerHTML = news.map(article => `<div class="bg-white rounded-lg shadow overflow-hidden flex flex-col group"><img src="${article.image}" alt="Tin tức" class="w-full h-48 object-cover"><div class="p-5 flex-1 flex flex-col"><span class="text-sm text-gray-500">${article.date}</span><h3 class="text-xl font-semibold mt-2 mb-2 group-hover:text-blue-600">${article.title}</h3><p class="text-gray-600 text-sm line-clamp-3 flex-1">${article.summary}</p><button class="view-content-btn text-blue-600 font-medium text-sm hover:underline mt-4 text-left" data-id="${article.id}" data-type="news">Đọc thêm</button></div></div>`).join('');
+        lucide.createIcons(); addContentEventListeners();
+    };
+    
+    const addContentEventListeners = () => {
+        document.querySelectorAll('.view-content-btn').forEach(btn => btn.addEventListener('click', (e) => openContentModal(e.currentTarget.dataset.id, e.currentTarget.dataset.type)));
+        document.querySelectorAll('.favorite-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const icon = button.querySelector('i'); const isFavorited = icon.getAttribute('fill') === 'currentColor';
+                icon.setAttribute('fill', isFavorited ? 'none' : 'currentColor'); icon.classList.toggle('text-red-500', !isFavorited);
+            });
+        });
+    };
+
+    const chatInput = document.getElementById('chat-input'), suggestionsBox = document.getElementById('search-suggestions');
+    chatInput.addEventListener('input', () => {
+        const query = chatInput.value; if (query.length < 2) { suggestionsBox.classList.add('hidden'); return; }
+        const normalizedQuery = normalizeText(query); const filteredKeywords = suggestedKeywords.filter(kw => normalizeText(kw).includes(normalizedQuery));
+        suggestionsBox.innerHTML = '';
+        if (filteredKeywords.length > 0) {
+            suggestionsBox.classList.remove('hidden');
+            filteredKeywords.slice(0, 4).forEach(kw => {
+                const div = document.createElement('div'); div.className = 'p-3 hover:bg-gray-100 cursor-pointer text-sm'; div.textContent = kw;
+                div.onclick = () => { chatInput.value = kw; suggestionsBox.classList.add('hidden'); sendUserMessage(); };
+                suggestionsBox.appendChild(div);
+            });
+        } else { suggestionsBox.classList.add('hidden'); }
+    });
+    const getBotResponse = (userMessage) => {
+        const normalizedMessage = normalizeText(userMessage);
+        for (const keyword in chatbotData) { if (normalizedMessage.includes(keyword)) return chatbotData[keyword]; }
+        simulation.inbox.add(userMessage);
+        return `Cảm ơn câu hỏi của bạn. Để được giải đáp, vui lòng <a href="https://www.facebook.com/tuan.huy.401271" target="_blank" class="text-blue-600 font-bold hover:underline">nhấn vào đây để hỏi Quản trị viên</a>.`;
+    };
+    const sendUserMessage = () => {
+        const message = chatInput.value.trim(); if (message === '') return;
+        simulation.stats.increment('chatbotUsage'); addChatMessage(message, 'user');
+        chatInput.value = ''; suggestionsBox.classList.add('hidden');
+        setTimeout(() => addChatMessage(getBotResponse(message), 'bot'), 1000);
+    };
+    const addChatMessage = (message, sender) => {
+        const chatHistory = document.getElementById('chat-history'); const msgDiv = document.createElement('div');
+        msgDiv.className = `flex items-start gap-3 ${sender === 'user' ? 'justify-end' : ''}`;
+        msgDiv.innerHTML = sender === 'user' ? `<div class="bg-blue-600 text-white p-4 rounded-lg shadow-sm" style="max-width: 70%;"><p>${message}</p></div><div class="bg-gray-300 text-gray-700 p-2.5 rounded-full w-10 h-10 flex-shrink-0 flex items-center justify-center"><i data-lucide="user" class="w-6 h-6"></i></div>`
+            : `<div class="bg-blue-600 text-white p-2.5 rounded-full w-10 h-10 flex-shrink-0 flex items-center justify-center"><i data-lucide="bot" class="w-6 h-6"></i></div><div class="bg-white p-4 rounded-lg shadow-sm" style="max-width: 70%;"><p class="font-semibold text-blue-700">Bot Tư Vấn</p><div class="text-gray-800">${message}</div></div>`;
+        chatHistory.appendChild(msgDiv); lucide.createIcons(); chatHistory.scrollTop = chatHistory.scrollHeight;
+    };
+    document.getElementById('send-chat-btn').addEventListener('click', sendUserMessage);
+    chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendUserMessage(); });
+
+    const renderAdminList = (type) => {
+        const isDoc = type === 'doc', container = document.getElementById(isDoc ? 'admin-doc-list' : 'admin-news-list'), dataSource = isDoc ? documents : news;
+        container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left">
+            <thead class="bg-gray-100"><tr><th class="p-3">ID</th><th class="p-3">Tiêu đề</th><th class="p-3">Hành động</th></tr></thead>
+            <tbody>${dataSource.map(item => `<tr class="border-b"><td class="p-3">${item.id.toString().slice(-6)}</td><td class="p-3">${item.title}</td>
+                <td class="p-3 flex gap-2"><button class="edit-btn text-blue-600" data-id="${item.id}" data-type="${type}"><i data-lucide="file-pen-line"></i></button><button class="delete-btn text-red-600" data-id="${item.id}" data-type="${type}"><i data-lucide="trash-2"></i></button></td>
+            </tr>`).join('')}</tbody></table></div>`;
+        lucide.createIcons(); addAdminEventListeners();
+    };
+    const openEditor = (id, type) => {
+        const isDoc = type === 'doc', dataSource = isDoc ? documents : news, item = id ? dataSource.find(i => i.id == id) : { id: Date.now(), title: '', summary: '', content: '' };
+        document.getElementById('modal-title').textContent = id ? `Sửa` : `Thêm mới`;
+        document.getElementById('modal-body').innerHTML = `<div class="space-y-4"><input type="hidden" id="edit-id" value="${item.id}"><input type="hidden" id="edit-type" value="${type}">
+            <div><label class="block text-sm">Tiêu đề</label><input id="edit-title" class="w-full p-2 border rounded" value="${item.title || ''}"></div>
+            ${isDoc ? '' : `<div><label class="block text-sm">Ngày đăng</label><input id="edit-date" class="w-full p-2 border rounded" value="${item.date || ''}"></div><div><label class="block text-sm">URL Hình ảnh</label><input id="edit-image" class="w-full p-2 border rounded" value="${item.image || ''}"></div>`}
+            <div><label class="block text-sm">Tóm tắt</label><textarea id="edit-summary" class="w-full p-2 border rounded" rows="3">${item.summary || ''}</textarea></div>
+            <div><label class="block text-sm">Nội dung</label><textarea id="edit-content" class="w-full p-2 border rounded" rows="6">${item.content || ''}</textarea></div>
+            <button id="save-btn" class="bg-blue-600 text-white px-4 py-2 rounded">Lưu</button></div>`;
+        contentModal.classList.remove('hidden', 'opacity-0'); document.getElementById('save-btn').onclick = saveContent;
+    };
+    const saveContent = () => {
+        const id = parseInt(document.getElementById('edit-id').value), type = document.getElementById('edit-type').value, isDoc = type === 'doc';
+        let dataSource = isDoc ? documents : news, newItem = {};
+        if (isDoc) newItem = { id, title: document.getElementById('edit-title').value, summary: document.getElementById('edit-summary').value, content: document.getElementById('edit-content').value, icon: 'file-text' };
+        else newItem = { id, title: document.getElementById('edit-title').value, date: document.getElementById('edit-date').value, image: document.getElementById('edit-image').value, summary: document.getElementById('edit-summary').value, content: document.getElementById('edit-content').value };
+        const itemIndex = dataSource.findIndex(i => i.id == id);
+        if (itemIndex > -1) dataSource[itemIndex] = newItem; else dataSource.unshift(newItem);
+        localStorage.setItem(isDoc ? 'documents' : 'news', JSON.stringify(dataSource));
+        if (isDoc) documents = dataSource; else news = dataSource;
+        closeModal(); renderAdminList(type); if (isDoc) renderDocuments(documents); else renderNews();
+    };
+    const deleteContent = (id, type) => {
+        if (confirm(`Bạn có chắc muốn xóa không?`)) {
+            let dataSource = type === 'doc' ? documents : news; dataSource = dataSource.filter(i => i.id != id);
+            localStorage.setItem(type === 'doc' ? 'documents' : 'news', JSON.stringify(dataSource));
+            if (type === 'doc') documents = dataSource; else news = dataSource;
+            renderAdminList(type); if (type === 'doc') renderDocuments(documents); else renderNews();
+        }
+    };
+    const addAdminEventListeners = () => {
+        document.getElementById('add-doc-btn').addEventListener('click', () => openEditor(null, 'doc'));
+        document.getElementById('add-news-btn').addEventListener('click', () => openEditor(null, 'news'));
+        document.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', (e) => openEditor(e.currentTarget.dataset.id, e.currentTarget.dataset.type)));
+        document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', (e) => deleteContent(e.currentTarget.dataset.id, e.currentTarget.dataset.type)));
+    };
+    document.querySelectorAll('.admin-nav-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault(); const subpageId = e.currentTarget.dataset.subpage;
+            document.querySelectorAll('.admin-subpage').forEach(p => p.classList.remove('active'));
+            document.getElementById(`${subpageId}-subpage`).classList.add('active');
+            document.querySelectorAll('.admin-nav-link').forEach(l => l.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+        });
+    });
+
+    const renderAdminChatbotManager = () => {
+        const dataContainer = document.getElementById('admin-chatbot-data-list');
+        dataContainer.innerHTML = Object.entries(chatbotData).map(([key, value]) => `<div class="flex items-center justify-between p-2 bg-gray-50 rounded"><div class="text-sm font-medium">${key}</div><div class="flex gap-2"><button class="edit-answer-btn text-blue-600" data-key="${key}"><i data-lucide="file-pen-line"></i></button><button class="delete-answer-btn text-red-600" data-key="${key}"><i data-lucide="trash-2"></i></button></div></div>`).join('');
+        const suggestionsContainer = document.getElementById('admin-suggestions-list');
+        suggestionsContainer.innerHTML = suggestedKeywords.map(kw => `<div class="flex items-center justify-between p-2 bg-gray-50 rounded"><span class="text-sm">${kw}</span><button class="delete-suggestion-btn text-red-500" data-kw="${kw}"><i data-lucide="x-circle"></i></button></div>`).join('');
+        lucide.createIcons(); addAdminChatbotEventListeners();
+    };
+    const addAdminChatbotEventListeners = () => {
+        document.getElementById('add-answer-btn').onclick = () => openChatbotEditor(null);
+        document.getElementById('add-suggestion-btn').onclick = addSuggestion;
+        document.querySelectorAll('.edit-answer-btn').forEach(b => b.onclick = (e) => openChatbotEditor(e.currentTarget.dataset.key));
+        document.querySelectorAll('.delete-answer-btn').forEach(b => b.onclick = (e) => deleteChatbotAnswer(e.currentTarget.dataset.key));
+        document.querySelectorAll('.delete-suggestion-btn').forEach(b => b.onclick = (e) => deleteSuggestion(e.currentTarget.dataset.kw));
+    };
+    const openChatbotEditor = (key) => {
+        const answer = key ? chatbotData[key] : '';
+        document.getElementById('modal-title').textContent = key ? 'Sửa câu trả lời' : 'Thêm câu trả lời mới';
+        document.getElementById('modal-body').innerHTML = `<div class="space-y-4">
+            <div><label class="block text-sm">Từ khóa (không dấu, vd: 'ly hon')</label><input id="edit-chatbot-key" class="w-full p-2 border rounded" value="${key || ''}" ${key ? 'disabled' : ''}></div>
+            <div><label class="block text-sm">Câu trả lời (hỗ trợ HTML)</label><textarea id="edit-chatbot-answer" class="w-full p-2 border rounded" rows="5">${answer}</textarea></div>
+            <button id="save-chatbot-btn" class="bg-blue-600 text-white px-4 py-2 rounded">Lưu</button></div>`;
+        contentModal.classList.remove('hidden', 'opacity-0');
+        document.getElementById('save-chatbot-btn').onclick = saveChatbotAnswer;
+    };
+    const saveChatbotAnswer = () => {
+        const key = normalizeText(document.getElementById('edit-chatbot-key').value), answer = document.getElementById('edit-chatbot-answer').value;
+        if (!key || !answer) { alert('Từ khóa và câu trả lời không được trống.'); return; }
+        chatbotData[key] = answer; localStorage.setItem('chatbotData', JSON.stringify(chatbotData));
+        closeModal(); renderAdminChatbotManager();
+    };
+    const deleteChatbotAnswer = (key) => {
+        if (confirm(`Xóa câu trả lời cho từ khóa "${key}"?`)) {
+            delete chatbotData[key]; localStorage.setItem('chatbotData', JSON.stringify(chatbotData));
+            renderAdminChatbotManager();
+        }
+    };
+    const addSuggestion = () => {
+        const input = document.getElementById('new-suggestion-input'), newKw = input.value.trim();
+        if (newKw && !suggestedKeywords.includes(newKw)) {
+            suggestedKeywords.unshift(newKw); localStorage.setItem('suggestedKeywords', JSON.stringify(suggestedKeywords));
+            renderAdminChatbotManager(); input.value = '';
+        }
+    };
+    const deleteSuggestion = (kw) => {
+        suggestedKeywords = suggestedKeywords.filter(k => k !== kw);
+        localStorage.setItem('suggestedKeywords', JSON.stringify(suggestedKeywords));
+        renderAdminChatbotManager();
+    };
+
+    setupInitialData();
+    updateUIAfterAuth();
+    changePage('chatbot');
+    renderDocuments(documents);
+    renderNews();
+    renderAdminList('doc');
+    renderAdminList('news');
+    renderAdminChatbotManager();
+});
+</script>
+</body>
+</html>
