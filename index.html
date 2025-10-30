@@ -272,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
         })();
         
         chatbotData = JSON.parse(localStorage.getItem('chatbotData')) || (() => {
-            const defaultData = { "ly hon": "...", "dat dai": "...", "so do": "...", "lao dong": "...", "thanh lap cong ty": "...", "di chuc": "...", "quyen nuoi con": "...", "hop dong dat coc": "..." };
+            const defaultData = { "ly hon": "Bình tĩnh", "dat dai": "...", "so do": "...", "lao dong": "...", "thanh lap cong ty": "...", "di chuc": "...", "quyen nuoi con": "...", "hop dong dat coc": "..." };
             localStorage.setItem('chatbotData', JSON.stringify(defaultData)); return defaultData;
         })();
 
